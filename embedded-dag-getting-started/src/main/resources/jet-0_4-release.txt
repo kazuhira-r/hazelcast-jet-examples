@@ -1,0 +1,87 @@
+We are happy to announce the release of Hazelcast Jet 0.4. This is the first major release since our inital version and has many improvements bringing us closer to our final vision for Jet:
+
+Improved streaming support including windowing support with event-time semantics.
+Out of the box support for tumbling, sliding and session window aggregations.
+New AggregateOperation abstraction with several built-in ones including count, average, sum, min, max and linear regression.
+Hazelcast version updated to 3.8.2 and Hazelcast IMDG is now shaded inside hazelcast-jet.jar.
+Several built-in diagnostic processors and unit test support for writing custom processors.
+Many new code samples including several streaming examples and enrichment and co-group for batch operations.
+New sources and sinks including ICache, socket and file.
+Windowing Support with Event-Time semantics
+
+The biggest improvement is the addition of tools for using Jet on infinite streams of data. Dealing with streaming data is fundamentally different than batch or micro-batch processing as both input and output is continuous. Most streaming computations also deal with some notion of time where you are interested in how a value changes over time. The typical way to deal with streaming data is to look at it in terms of “windows”, where a window represents a slice of the data stream, usually constrained for a period of time.
+
+Jet 0.4 adds several processors which deal specifically with aggregation of streaming data into windows. Types of windowing supported can be summarised as follows:
+
+Tumbling Windows: Fixed-size, non-overlapping and contiguous intervals. For example a tumbling window of 1 minute would mean that each window is of 1 minute length, are not overlapping, and contiguous to each other.
+Sliding Windows: A variation on tumbling windows, sliding windows can have overlapping elements and slide in fixed increments as time advances.
+Session Windows: Typically captures a burst of events which are separated by a period of inactivity. This can be used to window events by a user session, for example.
+Jet also supports the notion of “event-time” where events can have their own timestamp and can arrive out of order. This is achieved by inserting watermarks into the stream of events which drive the passage of time forward.
+
+More detail description for types of windows supported by Jet can be found in the Hazelcast Jet Reference Manual.
+
+Several examples with windowing have also been added to the Hazelcast Jet Code Samples Repository.
+
+As with everything else in Jet, we are focused on having great performance, and the streaming features of Jet is built within the same mindset and makes use of the same cooperative processing as batch processing. Jet streaming jobs typically have magnitudes lower latency than other distributed stream processing frameworks.
+
+Aggregate Operations
+
+Jet 0.4 also introduces a new interface called AggregateOperation which is a general purpose interface that is used throughout Jet for defining aggregations. The aggregate operations can be used both for stream and for batch processing. To cover the most common aggregations, several aggregate operations are also included:
+
+counting()
+summingLong()
+averagingDouble()
+averagingLong()
+linearTrend()
+minBy()
+maxBy()
+toCollection()
+toList()
+toMap()
+More details can be found in the reference manual.
+
+New Sources and Sinks
+
+This release also adds several new connectors:
+
+Hazelcast ICache can be used as a source or sink and it can also be used as a source for distributed java.util.stream computations:
+
+jetInstance.getCache('cacheName').stream().map(..)...
+
+Socket readers and writers can read and write to simple text based sockets. An example can be found inside the Hazelcast Jet Code Samples Repository
+
+Vertex source = dag.newVertex("source", Sources.streamSocket(HOST, PORT));
+
+Batch and streaming file reader and writers can be used for either reading static files or watching a directory for changes:
+
+Vertex streamFiles = dag.newVertex("stream-files", Sources.streamFiles(DIRECTORY));
+Vertex readFiles = dag.newVertex("read-files", Sources.readFiles(DIRECTORY));
+
+Improved Diagnostics Tools
+
+New processors have been added to help with debugging inputs and outputs of vertices. These processors can be used to peek at input and output of individual processors, or act as a simple logging sink.
+
+Vertex combine = dag.newVertex("combine", peekInput(combineByKey(counting())));
+
+Vertex log = dag.newVertex("log", DiagnosticProcessors.writeLogger())
+                .localParallelism(1);
+More detailed information can be found in the reference manual.
+
+Processor Unit Testing Helpers
+
+New classes have been added to make it easier to write unit tests for processors, and avoid writing boilerplate code.
+
+For example, the following will test that the processor produces the expected output, when the expected input is supplied. For cooperative processors, it will also make sure that it respects cooperative emission of output.
+
+TestSupport.testProcessor(
+              Processors.map((String s) -> s.toUpperCase()),
+              asList("foo", "bar"),
+              asList("FOO", "BAR")
+      );
+More information is available in the reference manual.
+
+Hazelcast Version Update
+
+Embedded hazelcast version is updated to 3.8.2 and Hazelcast is now shaded into Jet. As a result, hazelcast-jet.jar have no dependencies and starting a new Jet instance now is as simple as:
+
+java -jar hazelcast-jet-0.4.jar
